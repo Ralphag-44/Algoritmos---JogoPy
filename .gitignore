@@ -13,8 +13,9 @@
 !.gitignore
 
 # Nao ha excecao pra pastas: como nenhuma e liberada acima, o git nem entra
-# nelas. Ficam de fora automaticamente .venv/, __pycache__/, planejamento/,
-# build/, dist/ e o que mais aparecer.
+# nelas. Fica de fora automaticamente outros/ (documentacao, planejamento,
+# rascunhos, .env e venv), alem de __pycache__/, build/, dist/ e o que mais
+# aparecer.
 #
 # Cuidado: se um dia o jogo passar a ter codigo em subpasta (ex: src/), libere
 # a pasta ANTES dos arquivos, senao o git nao chega neles:

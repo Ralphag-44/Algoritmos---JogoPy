@@ -2,19 +2,17 @@ from math import sin
 
 import pyxel
 
-# --- subida ---
-RISE_SPEED = 0.15      # pixels por frame
-START_BELOW = 48.0     # onde a lava nasce, abaixo do chao da torre
+RISE_SPEED = 0.85
+START_BELOW = 48.0
 
-# --- ondulacao ---
-SEGMENTS = 4           # trechos de bezier ao longo da largura
-SAMPLES = 6            # retas por trecho (mais = curva mais lisa, mais caro)
+SEGMENTS = 4
+SAMPLES = 6
 
-WAVE_AMP = 2.5         # quanto as ancoras sobem/descem
-WAVE_SPEED = 0.06      # velocidade da ondulacao
-WAVE_PHASE = 1.1       # defasagem entre uma ancora e a seguinte
+WAVE_AMP = 2.5
+WAVE_SPEED = 0.06
+WAVE_PHASE = 1.1
 
-CTRL_AMP = 5.0         # quanto os pontos de controle puxam a curva
+CTRL_AMP = 5.0
 CTRL_SPEED = 0.09
 CTRL_PHASE = 2.3
 
@@ -25,16 +23,6 @@ COLOR_LEVEL = 11
 
 
 class Lava:
-    """Superficie de lava: uma linha so, desenhada com beziers cubicas que balancam.
-
-    A lava NAO e uma entidade do mundo: e um unico nivel de altura (self.level) que
-    sobe a cada frame. Por isso matar o player custa uma comparacao de y, sem passar
-    pelo collide() de poligono do entity.py.
-
-    A ondulacao e puramente visual - quem mata e o nivel reto. Ligue DEBUG no
-    config.py pra ver a linha do nivel junto com os pontos de controle das beziers.
-    """
-
     __slots__ = ('level', 'start', 'speed', 'width', 'timer')
 
     def __init__(self, bottom, width, speed=RISE_SPEED):
@@ -53,14 +41,10 @@ class Lava:
         self.timer = 0
 
     def kills(self, entity):
-        """Morreu se o centro da entidade esta na altura da lava ou abaixo."""
         return entity.points[-1][1] >= self.level
-
-    # ---------------- bezier ----------------
 
     @staticmethod
     def __point(p0, p1, p2, p3, t):
-        """B(t) = (1-t)^3*P0 + 3(1-t)^2*t*P1 + 3(1-t)*t^2*P2 + t^3*P3"""
         u = 1.0 - t
         a = u * u * u
         b = 3 * u * u * t
@@ -70,13 +54,11 @@ class Lava:
                 a * p0[1] + b * p1[1] + c * p2[1] + d * p3[1])
 
     def __anchor(self, i):
-        """Ponta de um trecho: x fixo na grade, y no nivel da lava mais a onda."""
         x = self.width * i / SEGMENTS
         y = self.level + sin(self.timer * WAVE_SPEED + i * WAVE_PHASE) * WAVE_AMP
         return x, y
 
     def __segment(self, i):
-        """Os 4 pontos da bezier do trecho i: duas ancoras e dois controles."""
         p0 = self.__anchor(i)
         p3 = self.__anchor(i + 1)
 
@@ -87,8 +69,6 @@ class Lava:
         p2 = (p3[0] - third, p3[1] + sin(phase + 1.6) * CTRL_AMP)
 
         return p0, p1, p2, p3
-
-    # ---------------- desenho ----------------
 
     def draw(self):
         for i in range(SEGMENTS):
@@ -101,7 +81,6 @@ class Lava:
                 prev = cur
 
     def draw_debug(self):
-        """Mostra como a curva e construida: poligono de controle e nivel real."""
         pyxel.line(0, self.level, self.width, self.level, COLOR_LEVEL)
 
         for i in range(SEGMENTS):
