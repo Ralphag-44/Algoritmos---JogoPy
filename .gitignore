@@ -1,56 +1,22 @@
-# ---- Ambiente virtual ----
-# Recriável com: python -m venv .venv && pip install -r requirements.txt
-.venv/
-venv/
-env/
-.python-version
+# Lista de permissao: ignora TUDO e libera so o que o jogo precisa pra rodar.
+# Assim qualquer arquivo novo (rascunho, .env, venv, build, anotacao) fica de
+# fora por padrao, sem precisar lembrar de adicionar aqui.
 
-# ---- Bytecode e caches do Python ----
-__pycache__/
-*.py[cod]
-*$py.class
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.coverage
-htmlcov/
+*
 
-# ---- Build e empacotamento (pyxel package / export HTML) ----
-build/
-dist/
-*.egg-info/
-*.pyxapp
-*.html
-
-# ---- Gerado pelo jogo em tempo de execução ----
-# recordes, saves e logs: nascem na máquina de quem joga
-recorde.json
-*.save
-*.log
-
-# ---- Rascunhos soltos na raiz ----
-teste.txt
-texto
-
-# ---- Documentação e planejamento (não são necessários pro jogo rodar) ----
-info.txt
-planejamento/
-
-# ---- Documentação e planejamento (não roda o jogo) ----
-info.txt
-planejamento/
-
-# ---- Editor e sistema operacional ----
-.vscode/
-.idea/
-*.swp
-*~
-.DS_Store
-Thumbs.db
-
-# ---- Versionado (essencial pro jogo rodar) ----
-# *.py              módulos do jogo
-# requirements.txt  pyxel + numpy
-# run.py            lançador
-# *.pyxres          sprites e sons do Pyxel Editor — asset, não artefato de build
+# ---- o que roda o jogo ----
+!*.py
+!requirements.txt
 !*.pyxres
+
+# ---- o proprio arquivo ----
+!.gitignore
+
+# Nao ha excecao pra pastas: como nenhuma e liberada acima, o git nem entra
+# nelas. Ficam de fora automaticamente .venv/, __pycache__/, planejamento/,
+# build/, dist/ e o que mais aparecer.
+#
+# Cuidado: se um dia o jogo passar a ter codigo em subpasta (ex: src/), libere
+# a pasta ANTES dos arquivos, senao o git nao chega neles:
+#     !src/
+#     !src/*.py

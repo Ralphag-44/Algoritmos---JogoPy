@@ -2,10 +2,12 @@ import random
 
 import pyxel
 
+from config import DEBUG
 from player import Player, MAX_HP, KEY_LEFT, KEY_RIGHT, KEY_JUMP, KEY_HOOK_HOLD, KEY_ROPE_IN, KEY_ROPE_OUT
 from plataform import Platform, MovingPlatform
 from projectile import Projectile
 from enemy import Archer, Charger, Caster
+from lava import Lava
 
 WIDTH = 256
 HEIGHT = 192
@@ -42,6 +44,7 @@ class Game:
 
         self.player = Player(SPAWN_X, LEVEL_HEIGHT - 30, half_size=3)
         self.platforms, self.enemies = self.__build_level()
+        self.lava = Lava(LEVEL_HEIGHT, LEVEL_WIDTH)
         self.projectiles = []
         self.world = World()
 
@@ -100,6 +103,7 @@ class Game:
     def update(self):
         keys = self.__read_keys()
 
+        self.lava.update()
         self.__update_platforms()
 
         self.__handle_hook(keys)
@@ -121,7 +125,7 @@ class Game:
 
         self.__update_camera()
 
-        if not self.player.alive():
+        if not self.player.alive() or self.lava.kills(self.player):
             self.__reset()
 
     def __update_platforms(self):
@@ -167,6 +171,8 @@ class Game:
 
     def __reset(self):
         self.player.respawn(SPAWN_X, LEVEL_HEIGHT - 30)
+        self.platforms, self.enemies = self.__build_level()
+        self.lava.reset()
         self.projectiles.clear()
         self.world.arrows.clear()
         self.world.spells.clear()
@@ -222,6 +228,10 @@ class Game:
         for platform in self.platforms:
             if top < platform.points[-1][1] < bottom:
                 platform.draw()
+
+        self.lava.draw()
+        if DEBUG:
+            self.lava.draw_debug()
 
         for arrow in self.world.arrows:
             arrow.draw()
