@@ -1,0 +1,56 @@
+# ---- Ambiente virtual ----
+# Recriável com: python -m venv .venv && pip install -r requirements.txt
+.venv/
+venv/
+env/
+.python-version
+
+# ---- Bytecode e caches do Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ---- Build e empacotamento (pyxel package / export HTML) ----
+build/
+dist/
+*.egg-info/
+*.pyxapp
+*.html
+
+# ---- Gerado pelo jogo em tempo de execução ----
+# recordes, saves e logs: nascem na máquina de quem joga
+recorde.json
+*.save
+*.log
+
+# ---- Rascunhos soltos na raiz ----
+teste.txt
+texto
+
+# ---- Documentação e planejamento (não são necessários pro jogo rodar) ----
+info.txt
+planejamento/
+
+# ---- Documentação e planejamento (não roda o jogo) ----
+info.txt
+planejamento/
+
+# ---- Editor e sistema operacional ----
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# ---- Versionado (essencial pro jogo rodar) ----
+# *.py              módulos do jogo
+# requirements.txt  pyxel + numpy
+# run.py            lançador
+# *.pyxres          sprites e sons do Pyxel Editor — asset, não artefato de build
+!*.pyxres
