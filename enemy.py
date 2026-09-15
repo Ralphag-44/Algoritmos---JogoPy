@@ -82,17 +82,17 @@ class Enemy(Entity):
     def __move(self, platforms):
         self.translate(self.vx, 0)
         for platform in platforms:
-            push = self.resolve(platform, 'x', self.vx)
-            if push:
-                self.translate(push, 0)
+            empurrao = self.resolve(platform, 'x', self.vx)
+            if empurrao:
+                self.translate(empurrao, 0)
                 self.vx = 0.0
 
         self.translate(0, self.vy)
         self.ground = False
         for platform in platforms:
-            push = self.resolve(platform, 'y', self.vy)
-            if push:
-                self.translate(0, push)
+            empurrao = self.resolve(platform, 'y', self.vy)
+            if empurrao:
+                self.translate(0, empurrao)
                 if self.vy > 0:
                     self.ground = True
                 self.vy = 0.0
