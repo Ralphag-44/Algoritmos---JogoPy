@@ -65,9 +65,9 @@ class Player(Entity):
         if self.lock:
             self.lock -= 1
 
-        balancando = self.__update_hook(platforms)
+        swinging = self.__update_hook(platforms)
 
-        if balancando:
+        if swinging:
             self.state |= HOOKED
             self.__swing(keys)
         else:
