@@ -52,7 +52,7 @@ class Game:
 
     @staticmethod
     def __build_level():
-        rng = random.Random(SEED)
+        sorteador = random.Random(SEED)
 
         platforms = [
             Platform(LEVEL_WIDTH / 2, LEVEL_HEIGHT - 5, [
@@ -67,20 +67,20 @@ class Game:
         tier = 0
 
         while y > 80:
-            w = rng.choice((44, 52, 60))
+            w = sorteador.choice((44, 52, 60))
             h = 8
             x = 12 + (LEVEL_WIDTH - 24 - w) * (0.15 if tier % 2 else 0.85)
-            x += rng.randint(-10, 10)
+            x += sorteador.randint(-10, 10)
             x = max(6, min(LEVEL_WIDTH - w - 6, x))
 
             corners = [(x, y - h), (x + w, y - h), (x + w, y), (x, y)]
             cx, cy = x + w / 2, y - h / 2
 
             if tier % 5 == 4:
-                reach = rng.choice((-1, 1)) * rng.randint(50, 80)
+                reach = sorteador.choice((-1, 1)) * sorteador.randint(50, 80)
                 to_x = max(w / 2 + 6, min(LEVEL_WIDTH - w / 2 - 6, cx + reach))
                 platforms.append(MovingPlatform(cx, cy, corners, to_x, cy,
-                                                speed=rng.uniform(0.5, 0.85)))
+                                                speed=sorteador.uniform(0.5, 0.85)))
             else:
                 platforms.append(Platform(cx, cy, corners))
 
