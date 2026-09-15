@@ -1,23 +1,6 @@
-# Lista de permissao: ignora TUDO e libera so o que o jogo precisa pra rodar.
-# Assim qualquer arquivo novo (rascunho, .env, venv, build, anotacao) fica de
-# fora por padrao, sem precisar lembrar de adicionar aqui.
-
 *
 
-# ---- o que roda o jogo ----
 !*.py
 !requirements.txt
 !*.pyxres
-
-# ---- o proprio arquivo ----
 !.gitignore
-
-# Nao ha excecao pra pastas: como nenhuma e liberada acima, o git nem entra
-# nelas. Fica de fora automaticamente outros/ (documentacao, planejamento,
-# rascunhos, .env e venv), alem de __pycache__/, build/, dist/ e o que mais
-# aparecer.
-#
-# Cuidado: se um dia o jogo passar a ter codigo em subpasta (ex: src/), libere
-# a pasta ANTES dos arquivos, senao o git nao chega neles:
-#     !src/
-#     !src/*.py
