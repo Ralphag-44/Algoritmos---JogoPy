@@ -89,7 +89,8 @@ class Entity:
 
     def aabb(self):
         outline = self.points[:-1]
-        return outline[:, 0].min(), outline[:, 0].max(), outline[:, 1].min(), outline[:, 1].max()
+        return (outline[:, 0].min(), outline[:, 0].max(),
+                outline[:, 1].min(), outline[:, 1].max())
 
 
     def resolve(self, other, axis, vel):
