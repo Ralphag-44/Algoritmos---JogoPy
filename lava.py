@@ -2,7 +2,7 @@ from math import sin
 
 import pyxel
 
-RISE_SPEED = 0.85
+RISE_SPEED = 0.15
 START_BELOW = 48.0
 
 SEGMENTS = 4

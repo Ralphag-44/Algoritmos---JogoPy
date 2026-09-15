@@ -2,7 +2,7 @@ from math import pi
 
 GRAVITY = 0.25
 PIXEL_SIZE = 2
-DEBUG = True
+DEBUG = False
 
 
 def wrap(angle):
