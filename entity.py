@@ -1,7 +1,8 @@
-from math import sin, cos, pi
+from math import sin, cos, pi, floor
 import numpy as np
 import pyxel
-from config import PIXEL_SIZE
+from config import DEBUG
+from sprites import CLEAR
 
 
 class Entity:
@@ -116,18 +117,95 @@ class Entity:
         return self.points[-1]
 
 
-    def draw(self):
+    def draw(self, flip=False, angle=0.0, pal=None):
         cx, cy = self.points[-1]
 
-        if self.type == 'img':
+        if self.type == 'sprite':
+            Entity.paint(self.img, cx, cy, flip, angle, pal)
+        elif self.type == 'tiles':
+            self.__paint_tiles(pal)
+        elif self.type == 'img':
             w = h = self.size * 2
             pyxel.blt(cx - self.size, cy - self.size, self.img, 0, 0, w, h, 0)
+        else:
+            outline = self.points[:-1]
+            n = len(outline)
+
+            for i in range(n):
+                x1, y1 = outline[i]
+                x2, y2 = outline[(i + 1) % n]
+                pyxel.tri(cx, cy, x1, y1, x2, y2, self.color)
+
+        if DEBUG:
+            self.__draw_hitbox()
+
+
+    @staticmethod
+    def paint(sprite, x, y, flip=False, angle=0.0, pal=None):
+        if angle:
+            Entity.__paint_rotated(sprite, x, y, flip, angle, pal)
             return
 
+        w = sprite.w
+        ox = floor(x - (w - sprite.px if flip else sprite.px))
+        oy = floor(y - sprite.py)
+        pset = pyxel.pset
+
+        for j, row in enumerate(sprite.grid):
+            for i, c in enumerate(row):
+                if c == CLEAR:
+                    continue
+                pset(ox + (w - 1 - i if flip else i), oy + j, pal[c] if pal else c)
+
+
+    @staticmethod
+    def __paint_rotated(sprite, x, y, flip, angle, pal):
+        grid, w, h, px, py = sprite.grid, sprite.w, sprite.h, sprite.px, sprite.py
+        cos_a, sin_a = cos(angle), sin(angle)
+        side = -1 if flip else 1
+
+        reach = int((max(px, w - px) ** 2 + max(py, h - py) ** 2) ** 0.5) + 1
+        bx, by = floor(x), floor(y)
+        pset = pyxel.pset
+
+        for dy in range(-reach, reach + 1):
+            ry = by + dy + 0.5 - y
+            for dx in range(-reach, reach + 1):
+                rx = bx + dx + 0.5 - x
+
+                u = side * (rx * cos_a + ry * sin_a) + px
+                v = -rx * sin_a + ry * cos_a + py
+                if not (0 <= u < w and 0 <= v < h):
+                    continue
+
+                c = grid[int(v)][int(u)]
+                if c != CLEAR:
+                    pset(bx + dx, by + dy, pal[c] if pal else c)
+
+
+    def __paint_tiles(self, pal):
+        top, body = self.img
+        xmin, xmax, ymin, ymax = self.aabb()
+        x0, y0 = floor(xmin), floor(ymin)
+        x1, y1 = floor(xmax), floor(ymax)
+        pset = pyxel.pset
+
+        for y in range(y0, y1):
+            j = y - y0
+            row = top.grid[j] if j < top.h else body.grid[(j - top.h) % body.h]
+            w = len(row)
+
+            for x in range(x0, x1):
+                c = row[(x - x0) % w]
+                if c != CLEAR:
+                    pset(x, y, pal[c] if pal else c)
+
+
+    def __draw_hitbox(self):
         outline = self.points[:-1]
         n = len(outline)
 
         for i in range(n):
             x1, y1 = outline[i]
             x2, y2 = outline[(i + 1) % n]
-            pyxel.tri(cx, cy, x1, y1, x2, y2, self.color)
+            pyxel.line(x1, y1, x2, y2, 8)

@@ -1,5 +1,6 @@
 from entity import Entity
 from config import GRAVITY
+from sprites import STONE_SHOT
 
 DRAG = 0.985
 RESTITUTION = 0.8
@@ -7,19 +8,21 @@ MIN_SPEED = 0.05
 LIFETIME = 240
 STEP = 1.0
 DAMAGE = 8
+ROLL = 0.35
 
 
 class Projectile(Entity):
-    __slots__ = ('vx', 'vy', 'age', 'active', 'damage')
+    __slots__ = ('vx', 'vy', 'age', 'active', 'damage', 'spin')
 
     def __init__(self, x, y, vx, vy, size=1.5):
-        super().__init__(True, x, y, 6, size, [], 'color', color=9)
+        super().__init__(True, x, y, 6, size, [], 'sprite', img=STONE_SHOT)
 
         self.vx = vx
         self.vy = vy
         self.age = 0
         self.active = True
         self.damage = DAMAGE
+        self.spin = 0.0
 
     def update(self, platforms):
         self.age += 1
@@ -30,6 +33,7 @@ class Projectile(Entity):
             self.vy += GRAVITY
 
             self.__move_and_collide(platforms)
+            self.spin += self.vx * ROLL
 
             speed = (self.vx ** 2 + self.vy ** 2) ** 0.5
             if speed <= MIN_SPEED:
@@ -94,3 +98,6 @@ class Projectile(Entity):
         dot = self.vx * nx + self.vy * ny
         self.vx = (self.vx - 2 * dot * nx) * RESTITUTION
         self.vy = (self.vy - 2 * dot * ny) * RESTITUTION
+
+    def draw(self):
+        super().draw(angle=self.spin)

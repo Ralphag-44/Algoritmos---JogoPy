@@ -1,14 +1,14 @@
-from entity import Entity
+import pyxel
 
-COLOR_STATIC = 0
-COLOR_MOVING = 12
+from entity import Entity
+from sprites import STONE_TOP, STONE, RAFT, GLOW
 
 
 class Platform(Entity):
     __slots__ = ('dx', 'dy')
 
-    def __init__(self, cx, cy, list_points, color=COLOR_STATIC):
-        super().__init__(False, cx, cy, 0, 0, list_points, 'color', color=color)
+    def __init__(self, cx, cy, list_points, tiles=(STONE_TOP, STONE)):
+        super().__init__(False, cx, cy, 0, 0, list_points, 'tiles', img=tiles)
 
         self.dx = 0.0
         self.dy = 0.0
@@ -21,7 +21,7 @@ class MovingPlatform(Platform):
     __slots__ = ('ax', 'ay', 'rx', 'ry', 'step', 't', 'way')
 
     def __init__(self, cx, cy, list_points, to_x, to_y, speed=0.6):
-        super().__init__(cx, cy, list_points, color=COLOR_MOVING)
+        super().__init__(cx, cy, list_points, tiles=(RAFT, RAFT))
 
         self.ax, self.ay = cx, cy
         self.rx, self.ry = to_x - cx, to_y - cy
@@ -47,3 +47,6 @@ class MovingPlatform(Platform):
 
         self.dx, self.dy = dx, dy
         return dx, dy
+
+    def draw(self):
+        super().draw(pal=GLOW[pyxel.frame_count // 6 % len(GLOW)])

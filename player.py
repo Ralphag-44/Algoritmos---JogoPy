@@ -5,6 +5,7 @@ import pyxel
 from entity import Entity
 from hook import Hook, MAX_RANGE
 from config import GRAVITY
+from sprites import PLAYER_IDLE, PLAYER_WALK, PLAYER_RISE, PLAYER_FALL, BELT, GLOW
 
 MOVE_SPEED = 1.4
 JUMP_SPEED = 3.6
@@ -41,7 +42,8 @@ class Player(Entity):
                  'wall_dir', 'wall_timer', 'lock', 'ground_platform')
 
     def __init__(self, cx, cy, half_size=4):
-        super().__init__(True, cx, cy, 4, half_size * sqrt(2), [], 'color', color=8, angle_offset=pi / 4)
+        super().__init__(True, cx, cy, 4, half_size * sqrt(2), [], 'sprite',
+                         img=PLAYER_IDLE, angle_offset=pi / 4)
 
         self.half = half_size
         self.vx = 0.0
@@ -141,8 +143,20 @@ class Player(Entity):
             self.vy = -JUMP_SPEED
             self.state &= ~DOUBLE_JUMP
 
+    def face(self, tx):
+        if tx >= self.points[-1][0]:
+            self.state |= FACING_RIGHT
+        else:
+            self.state &= ~FACING_RIGHT
+
+    def belt(self):
+        cx, cy = self.points[-1]
+        bx, by = BELT
+        return cx + (bx if self.state & FACING_RIGHT else -bx), cy + by
+
     def fire_hook(self, tx, ty):
         if self.hook is None:
+            self.face(tx)
             cx, cy = self.points[-1]
             self.hook = Hook(cx, cy, tx, ty)
 
@@ -229,6 +243,7 @@ class Player(Entity):
         self.vy = 0
 
     def fire(self, target_x, target_y, speed=3.0):
+        self.face(target_x)
         cx, cy = self.points[-1]
         dx = target_x - cx
         dy = target_y - cy
@@ -247,10 +262,23 @@ class Player(Entity):
         self.wall_timer = self.lock = 0
         self.ground_platform = None
 
-    def draw(self):
-        if not (self.iframes and pyxel.frame_count % 6 < 3):
-            super().draw()
+    def __frame(self):
+        if self.state & HOOKED:
+            return PLAYER_RISE
+        if not self.state & ON_GROUND:
+            return PLAYER_RISE if self.vy < 0 else PLAYER_FALL
+        if self.vx:
+            return PLAYER_WALK[pyxel.frame_count // 8 % len(PLAYER_WALK)]
+        return PLAYER_IDLE
 
+    def draw(self):
         if self.hook:
-            cx, cy = self.points[-1]
-            self.hook.draw(cx, cy)
+            bx, by = self.belt()
+            self.hook.draw(bx, by)
+
+        if self.iframes and pyxel.frame_count % 6 < 3:
+            return
+
+        self.img = self.__frame()
+        super().draw(flip=not self.state & FACING_RIGHT,
+                     pal=GLOW[pyxel.frame_count // 6 % len(GLOW)])

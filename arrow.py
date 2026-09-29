@@ -1,14 +1,11 @@
 from math import atan2, cos, sin, pi
 
-import pyxel
-
 from entity import Entity
 from config import GRAVITY, wrap
+from sprites import ARROW
 
 LENGTH = 6.0
 HALF_W = 1.4
-HEAD = 3.0
-FLETCH = 2.6
 
 DRAG = 0.998
 ALIGN = 0.0055
@@ -21,9 +18,6 @@ MAX_EMBED = LENGTH * 1.6
 
 STEP = 1.0
 STUCK_LIFE = 600
-COLOR = 4
-COLOR_HEAD = 0
-COLOR_FLETCH = 1
 
 
 class Arrow(Entity):
@@ -38,7 +32,7 @@ class Arrow(Entity):
                        (-LENGTH, 0.0), (-LENGTH * 0.5, HALF_W)):
             shape.append((x + ox * ca - oy * sa, y + ox * sa + oy * ca))
 
-        super().__init__(False, x, y, 0, LENGTH, shape, 'color', color=COLOR)
+        super().__init__(False, x, y, 0, LENGTH, shape, 'sprite', img=ARROW)
 
         self.vx = vx
         self.vy = vy
@@ -112,25 +106,7 @@ class Arrow(Entity):
         self.age = 0
 
     def draw(self):
-        cx, cy = self.points[-1]
-        ca, sa = cos(self.angle), sin(self.angle)
-
-        def local(ox, oy):
-            return cx + ox * ca - oy * sa, cy + ox * sa + oy * ca
-
-        tail_x, tail_y = local(-LENGTH, 0.0)
-        neck_x, neck_y = local(LENGTH - HEAD, 0.0)
-
-        pyxel.line(tail_x, tail_y, neck_x, neck_y, COLOR)
-
-        tip_x, tip_y = local(LENGTH, 0.0)
-        bx1, by1 = local(LENGTH - HEAD, -HEAD * 0.55)
-        bx2, by2 = local(LENGTH - HEAD, HEAD * 0.55)
-        pyxel.tri(tip_x, tip_y, bx1, by1, bx2, by2, COLOR_HEAD)
-
-        for side in (-1.0, 1.0):
-            fx, fy = local(-LENGTH + FLETCH, side * FLETCH * 0.75)
-            pyxel.line(tail_x, tail_y, fx, fy, COLOR_FLETCH)
+        super().draw(angle=self.angle)
 
 
 def aim_ballistic(sx, sy, tx, ty, speed):

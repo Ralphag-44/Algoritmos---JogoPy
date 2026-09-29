@@ -5,6 +5,7 @@ import pyxel
 from entity import Entity
 from config import wrap
 from explosion import Blast
+from sprites import MAGIC
 
 SPEED = 1.15
 TURN = 0.045
@@ -18,8 +19,6 @@ SIZE = 3.0
 SPIN = 0.18
 STEP = 1.0
 
-COLOR = 2
-COLOR_CORE = 14
 COLOR_WARN = 8
 
 
@@ -29,7 +28,7 @@ class Magic(Entity):
     def __init__(self, x, y, tx, ty):
         self.heading = atan2(ty - y, tx - x)
 
-        super().__init__(True, x, y, 4, SIZE, [], 'color', color=COLOR)
+        super().__init__(True, x, y, 4, SIZE, [], 'sprite', img=MAGIC)
 
         self.vx = cos(self.heading) * SPEED
         self.vy = sin(self.heading) * SPEED
@@ -89,5 +88,4 @@ class Magic(Entity):
         pyxel.circb(cx, cy, RADIUS, COLOR_WARN)
         pyxel.circ(cx, cy, RADIUS * grow, COLOR_WARN)
 
-        super().draw()
-        pyxel.pset(cx, cy, COLOR_CORE)
+        super().draw(angle=self.timer * SPIN)

@@ -7,6 +7,8 @@ from config import GRAVITY
 from arrow import Arrow, aim_ballistic
 from explosion import Blast
 from magic import Magic
+from sprites import (ARCHER_IDLE, ARCHER_DRAW, CHARGER_WALK, CASTER_FLOAT, CASTER_SPELL,
+                     HURT, LIT)
 
 MAX_FALL = 6.0
 HURT_FLASH = 6
@@ -36,11 +38,11 @@ CASTER_CAST = 26
 
 
 class Enemy(Entity):
-    __slots__ = ('vx', 'vy', 'hp', 'ground', 'flash', 'timer', 'walker')
+    __slots__ = ('vx', 'vy', 'hp', 'ground', 'flash', 'timer', 'walker', 'facing')
 
-    def __init__(self, cx, cy, num_p, size, color, hp, walker=True, angle_offset=0.0):
-        super().__init__(True, cx, cy, num_p, size, [], 'color',
-                         color=color, angle_offset=angle_offset)
+    def __init__(self, cx, cy, num_p, size, sprite, hp, walker=True, angle_offset=0.0):
+        super().__init__(True, cx, cy, num_p, size, [], 'sprite',
+                         img=sprite, angle_offset=angle_offset)
 
         self.vx = 0.0
         self.vy = 0.0
@@ -49,6 +51,7 @@ class Enemy(Entity):
         self.flash = 0
         self.timer = 0
         self.walker = walker
+        self.facing = 1
 
     def update(self, player, platforms, world):
         self.timer += 1
@@ -79,6 +82,15 @@ class Enemy(Entity):
         px, py = player.points[-1]
         return px - cx, py - cy
 
+    def look_at(self, dx):
+        self.facing = 1 if dx >= 0 else -1
+
+    def frame(self):
+        return self.img
+
+    def tint(self):
+        return HURT if self.flash else None
+
     def __move(self, platforms):
         self.translate(self.vx, 0)
         for platform in platforms:
@@ -98,20 +110,15 @@ class Enemy(Entity):
                 self.vy = 0.0
 
     def draw(self):
-        if self.flash:
-            color = self.color
-            self.color = 7
-            super().draw()
-            self.color = color
-            return
-        super().draw()
+        self.img = self.frame()
+        super().draw(flip=self.facing < 0, pal=self.tint())
 
 
 class Archer(Enemy):
     __slots__ = ('cooldown', 'aiming', 'shot')
 
     def __init__(self, cx, cy):
-        super().__init__(cx, cy, 3, 5.0, 1, ARCHER_HP)
+        super().__init__(cx, cy, 3, 5.0, ARCHER_IDLE, ARCHER_HP)
         self.cooldown = 0
         self.aiming = 0
         self.shot = None
@@ -121,6 +128,7 @@ class Archer(Enemy):
 
         dx, dy = self.dist_to(player)
         far = (dx * dx + dy * dy) ** 0.5 > ARCHER_RANGE
+        self.look_at(dx)
 
         if self.aiming:
             self.aiming -= 1
@@ -155,6 +163,9 @@ class Archer(Enemy):
         self.shot = None
         self.cooldown = ARCHER_COOLDOWN
 
+    def frame(self):
+        return ARCHER_DRAW if self.aiming else ARCHER_IDLE
+
     def draw(self):
         super().draw()
 
@@ -169,12 +180,13 @@ class Charger(Enemy):
     __slots__ = ('fuse',)
 
     def __init__(self, cx, cy):
-        super().__init__(cx, cy, 4, 4.5, 8, CHARGER_HP)
+        super().__init__(cx, cy, 4, 4.5, CHARGER_WALK[0], CHARGER_HP)
         self.fuse = 0
 
     def think(self, player, platforms, world):
         dx, dy = self.dist_to(player)
         dist = (dx * dx + dy * dy) ** 0.5
+        self.look_at(dx)
 
         if self.fuse:
             self.fuse -= 1
@@ -204,27 +216,39 @@ class Charger(Enemy):
         world.blasts.append(Blast(cx, cy, CHARGER_RADIUS, 1, CHARGER_DAMAGE))
         self.hp = 0
 
-    def draw(self):
-        super().draw()
+    def frame(self):
+        if self.vx or self.fuse:
+            return CHARGER_WALK[self.timer // 6 % len(CHARGER_WALK)]
+        return CHARGER_WALK[0]
 
+    def tint(self):
+        blink = 8 if self.fuse > CHARGER_FUSE // 2 else 4
+        if self.fuse and self.fuse % blink < blink // 2:
+            return LIT
+        return super().tint()
+
+    def draw(self):
         if self.fuse:
             cx, cy = self.points[-1]
             grow = 1.0 - self.fuse / CHARGER_FUSE
             pyxel.circb(cx, cy, CHARGER_RADIUS, 8)
             pyxel.circ(cx, cy, CHARGER_RADIUS * grow, 8)
 
+        super().draw()
+
 
 class Caster(Enemy):
     __slots__ = ('cooldown', 'casting')
 
     def __init__(self, cx, cy):
-        super().__init__(cx, cy, 5, 5.0, 2, CASTER_HP, walker=False)
+        super().__init__(cx, cy, 5, 5.0, CASTER_FLOAT[0], CASTER_HP, walker=False)
         self.cooldown = CASTER_COOLDOWN // 2
         self.casting = 0
 
     def think(self, player, platforms, world):
         dx, dy = self.dist_to(player)
         dist = (dx * dx + dy * dy) ** 0.5 or 1.0
+        self.look_at(dx)
 
         if dist > CASTER_SIGHT:
             self.vx = self.vy = 0.0
@@ -253,6 +277,11 @@ class Caster(Enemy):
         px, py = player.points[-1]
         world.spells.append(Magic(cx, cy, px, py))
         self.cooldown = CASTER_COOLDOWN
+
+    def frame(self):
+        if self.casting:
+            return CASTER_SPELL
+        return CASTER_FLOAT[self.timer // 12 % len(CASTER_FLOAT)]
 
     def draw(self):
         super().draw()

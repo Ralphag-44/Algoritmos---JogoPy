@@ -1,6 +1,13 @@
+from math import atan2
+
 import pyxel
 
-COLOR = 10 
+from entity import Entity
+from sprites import HOOK
+
+COLOR = 12
+COLOR_SPARK = 7
+SPARKS = 3
 
 SPEED = 5.5
 MAX_RANGE = 110.0
@@ -80,7 +87,14 @@ class Hook:
 
     def draw(self, px, py):
         if self.state & ATTACHED:
-            pyxel.line(px, py, self.anchor_x, self.anchor_y, COLOR)
-            pyxel.circ(self.anchor_x, self.anchor_y, 1, COLOR)
+            tx, ty = self.anchor_x, self.anchor_y
         else:
-            pyxel.line(px, py, self.x, self.y, COLOR)
+            tx, ty = self.x, self.y
+
+        pyxel.line(px, py, tx, ty, COLOR)
+
+        for k in range(SPARKS):
+            t = (pyxel.frame_count * 0.04 + k / SPARKS) % 1.0
+            pyxel.pset(px + (tx - px) * t, py + (ty - py) * t, COLOR_SPARK)
+
+        Entity.paint(HOOK, tx, ty, angle=atan2(ty - py, tx - px))
