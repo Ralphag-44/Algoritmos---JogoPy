@@ -174,19 +174,19 @@ class Player(Entity):
         if keys & KEY_ROPE_OUT:
             hook.length = min(hook.length + ROPE_SPEED, MAX_RANGE)
 
-        # forcas do frame: gravidade e o empurrao de A/D
+        # gravidade e empurrao dos lados
         self.vy += GRAVITY
         if keys & KEY_LEFT:
             self.vx -= HOOK_PULL
         if keys & KEY_RIGHT:
             self.vx += HOOK_PULL
 
-        # 1) anda livre, como se nao houvesse corda
+        # anda livre como se nao houvesse corda
         cx, cy = self.points[-1]
         next_x = cx + self.vx
         next_y = cy + self.vy
 
-        # 2) passou do tamanho da corda: volta pela reta ate a ancora, parando na borda do circulo
+        # se passou do tamanho da corda puxa de volta
         rope_x = next_x - hook.anchor_x
         rope_y = next_y - hook.anchor_y
         dist = hypot(rope_x, rope_y)
@@ -196,7 +196,7 @@ class Player(Entity):
             next_x = hook.anchor_x + rope_x * pull
             next_y = hook.anchor_y + rope_y * pull
 
-        # 3) a velocidade nova e o quanto andou de verdade
+        # a velocidade e o quanto andou de verdade
         self.vx = next_x - cx
         self.vy = next_y - cy
 

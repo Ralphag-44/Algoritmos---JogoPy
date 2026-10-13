@@ -17,7 +17,7 @@ class Blast:
         self.timer = 0
 
     def update(self, player):
-        # o dano acontece so no primeiro frame, o resto e o clarao sumindo
+        # o dano acontece so no primeiro frame
         if self.timer == 0:
             self.__hit(player)
 

@@ -25,7 +25,7 @@ BUTTON_Y = 92
 
 CONTROLS = "A/D andar  W pular  S/W corda  mouse: esq atira, dir gancho"
 
-# cores da gameplay de fundo, todas puxadas para tons claros
+# cores claras da gameplay de fundo
 FADED = (5, 5, 13, 6, 13, 13, 6, 7, 14, 15, 15, 6, 6, 13, 14, 15)
 
 COLOR_SHADE = 1
@@ -56,7 +56,7 @@ class Game:
 
     @staticmethod
     def __bake_title():
-        # escreve o titulo pequeno no banco de imagem 0 para depois desenhar ampliado
+        # escreve o titulo pequeno para desenhar grande depois
         bank = pyxel.images[0]
         bank.cls(0)
         bank.text(0, 0, TITLE, COLOR_TITLE)
@@ -78,7 +78,7 @@ class Game:
             self.__update_curtain()
 
     def __step_demo(self):
-        # a run gravada acabou (ou o jogador morreu): recomeca do zero
+        # a run acabou entao recomeca
         ended = len(self.demo) and self.tick > len(self.demo) + DEMO_TAIL
         if ended or self.session.over():
             self.__start_demo()
@@ -103,7 +103,7 @@ class Game:
         self.last = self.session.best
         self.record.height = self.session.best
 
-        # a melhor run do jogador vira o fundo do menu
+        # a melhor run vira o fundo do menu
         if self.record.height > self.best.height:
             self.record.save(BEST_FILE)
             self.best = self.demo = self.record
@@ -113,7 +113,7 @@ class Game:
     def __update_curtain(self):
         self.curtain += 1
 
-        # no meio da animacao a tela esta toda coberta: troca a cena por baixo
+        # troca a cena com a tela coberta
         if self.curtain == CURTAIN_TIME // 2:
             self.__swap()
 
@@ -130,7 +130,7 @@ class Game:
             self.__start_demo()
 
     def __curtain_bottom(self):
-        # vai de 0 a 2*HEIGHT, devagar nas pontas e rapido no meio
+        # altura da cortina
         t = self.curtain / CURTAIN_TIME
         return 2 * HEIGHT * t * t * (3 - 2 * t)
 
@@ -168,7 +168,7 @@ class Game:
         if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
             keys |= KEY_FIRE
 
-        # o alvo do mouse so importa no frame do clique, e vai em inteiro para a gravacao
+        # alvo do mouse so no clique
         tx = ty = 0
         if keys & (KEY_FIRE | KEY_HOOK_FIRE):
             tx = int(pyxel.mouse_x + self.session.cam_x)
@@ -191,7 +191,7 @@ class Game:
             self.__draw_curtain()
 
     def __draw_menu(self):
-        # o painel desce junto com a cortina so na ida para o jogo
+        # o painel desce junto com a cortina
         drop = 0
         if self.curtain and self.curtain < CURTAIN_TIME // 2:
             drop = self.__curtain_bottom()
@@ -216,7 +216,7 @@ class Game:
     def __draw_title(y):
         w = len(TITLE) * 4
         x = (WIDTH - w) // 2
-        # blt amplia em volta do centro do retangulo, entao x e y sao o retangulo pequeno
+        # desenha o titulo grande com sombra
         pyxel.blt(x + 2, y + 2, 0, 0, 8, w, 6, 0, scale=TITLE_SCALE)
         pyxel.blt(x, y, 0, 0, 0, w, 6, 0, scale=TITLE_SCALE)
 

@@ -154,7 +154,7 @@ class Session:
         self.difficulty.update()
         self.world.pace = self.difficulty.enemies()
 
-        # mostra o aviso de nivel novo por BANNER_TIME frames
+        # mostra o aviso de nivel novo
         if self.difficulty.leveled_up():
             self.banner = BANNER_TIME
         elif self.banner:
@@ -245,14 +245,14 @@ class Session:
         pyxel.camera()
 
     def draw_hud(self):
-        # vida: barra fina no canto de cima a esquerda
+        # barra de vida
         hp = max(self.player.hp, 0)
         pyxel.rect(5, 5, HP_BAR + 2, 5, COLOR_SKY)
         pyxel.rect(6, 6, HP_BAR, 3, COLOR_SOFT)
         pyxel.rect(6, 6, HP_BAR * hp // MAX_HP, 3, COLOR_HP)
         label(6 + HP_BAR + 4, 5, f"{hp}", COLOR_TEXT)
 
-        # altura e nivel no canto de cima a direita
+        # altura e nivel
         label_right(WIDTH - 6, 5, f"{self.height()}m", COLOR_TEXT)
         label_right(WIDTH - 6, 13, f"nivel {self.difficulty.level()}", COLOR_SOFT)
 

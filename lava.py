@@ -26,23 +26,23 @@ class Lava:
     __slots__ = ('level', 'width', 'timer')
 
     def __init__(self, bottom, width):
-        # indica a altura da lava (y da superficie), nasce abaixo do chao
+        # indica a altura da lava
         self.level = bottom + START_BELOW
         self.width = width
         self.timer = 0
 
     def update(self, pace=1.0):
         self.timer += 1
-        # y diminui = a lava sobe na tela
+        # a lava sobe
         self.level -= RISE_SPEED * pace
 
     def kills(self, entity):
-        # a morte ignora a onda: so compara o centro com o nivel
+        # morre quem esta abaixo da lava
         return entity.points[-1][1] >= self.level
 
     @staticmethod
     def __bezier(p0, p1, p2, p3, t):
-        # peso de cada ponto quando se esta na fracao t da curva (os quatro somam 1)
+        # quanto cada ponto puxa a curva
         u = 1.0 - t
         w0 = u * u * u
         w1 = 3 * u * u * t
@@ -54,7 +54,7 @@ class Lava:
         return x, y
 
     def __anchor(self, i):
-        # ponto fixo da superficie: divide a largura em partes iguais e sobe e desce com o tempo
+        # ponto da superficie que sobe e desce
         x = self.width * i / SEGMENTS
         y = self.level + sin(self.timer * WAVE_SPEED + i * WAVE_PHASE) * WAVE_AMP
         return x, y
@@ -63,7 +63,7 @@ class Lava:
         start = self.__anchor(i)
         end = self.__anchor(i + 1)
 
-        # os dois pontos de controle ficam a 1/3 e 2/3 do caminho e balancam em y
+        # pontos que entortam a curva
         third = (end[0] - start[0]) / 3.0
         phase = self.timer * CTRL_SPEED + i * CTRL_PHASE
 
@@ -73,7 +73,7 @@ class Lava:
         return start, ctrl1, ctrl2, end
 
     def __surface(self):
-        # a superficie vira uma fila de retas curtas que seguem as curvas
+        # quebra a curva em retas curtas
         for i in range(SEGMENTS):
             p0, p1, p2, p3 = self.__segment(i)
 
@@ -84,12 +84,12 @@ class Lava:
                 prev = cur
 
     def draw(self, bottom):
-        # lava inteira abaixo da tela
+        # lava fora da tela
         if self.level - WAVE_AMP - CTRL_AMP > bottom:
             return
 
         for (x0, y0), (x1, y1) in self.__surface():
-            # uma coluna vertical por x, da superficie ate o fim da tela
+            # pinta embaixo da superficie
             for x in range(int(x0), int(x1)):
                 y = y0 + (y1 - y0) * (x - x0) / (x1 - x0)
                 pyxel.line(x, y, x, bottom, COLOR)

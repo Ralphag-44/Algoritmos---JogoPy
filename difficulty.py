@@ -16,15 +16,15 @@ class Difficulty:
         self.timer += 1
 
     def level(self):
-        # sobe um nivel a cada LEVEL_TIME frames, ate MAX_LEVEL
+        # sobe um nivel a cada 20 segundos
         return min(self.timer // LEVEL_TIME, MAX_LEVEL)
 
     def leveled_up(self):
-        # verdadeiro so no frame exato em que o nivel muda
+        # avisa so no frame em que o nivel muda
         return self.timer % LEVEL_TIME == 0 and 0 < self.timer <= LEVEL_TIME * MAX_LEVEL
 
     def __scale(self, gain):
-        # nivel 0 = velocidade normal, cada nivel soma gain
+        # cada nivel deixa um pouco mais rapido
         return 1.0 + gain * self.level()
 
     def lava(self):

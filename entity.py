@@ -6,7 +6,7 @@ from sprites import CLEAR
 
 
 def side(start, end, p):
-    # positivo de um lado da reta start->end, negativo do outro, zero em cima
+    # diz de que lado da reta o ponto esta
     return ((end[..., 0] - start[..., 0]) * (p[..., 1] - start[..., 1])
             - (end[..., 1] - start[..., 1]) * (p[..., 0] - start[..., 0]))
 
@@ -64,7 +64,7 @@ class Entity:
 
 
     def collide(self, other):
-        # corte rapido: os circulos que envolvem os dois nem se tocam
+        # se estao longe nem precisa testar
         ax, ay = self.points[-1]
         bx, by = other.points[-1]
         if hypot(ax - bx, ay - by) > self.size + other.size:
@@ -76,18 +76,18 @@ class Entity:
         b_start = other.points[:-1]
         b_end = np.roll(b_start, -1, axis=0)
 
-        # arestas de A nas linhas, arestas de B nas colunas: testa todos os pares de uma vez
+        # monta uma tabela com todas as arestas de A contra todas de B
         a_start = a_start[:, np.newaxis]
         a_end = a_end[:, np.newaxis]
         b_start = b_start[np.newaxis, :]
         b_end = b_end[np.newaxis, :]
 
-        # as duas pontas da aresta de B ficam em lados opostos da reta de A
+        # as pontas de B ficam em lados opostos da reta de A
         b_split = (side(a_start, a_end, b_start) > 0) != (side(a_start, a_end, b_end) > 0)
-        # as duas pontas da aresta de A ficam em lados opostos da reta de B
+        # as pontas de A ficam em lados opostos da reta de B
         a_split = (side(b_start, b_end, a_start) > 0) != (side(b_start, b_end, a_end) > 0)
 
-        # duas arestas se cruzam quando as duas coisas valem juntas
+        # se as duas coisas valem as arestas se cruzam
         return bool((a_split & b_split).any())
 
 
@@ -133,11 +133,11 @@ class Entity:
             Entity.__paint_rotated(sprite, x, y, flip, angle, pal)
             return
 
-        # canto de cima a esquerda: o pivo do desenho cai em (x, y)
+        # canto de cima a esquerda do desenho
         pivot_x = sprite.w - sprite.px if flip else sprite.px
         left = floor(x - pivot_x)
         top = floor(y - sprite.py)
-        # atalho: evita buscar pyxel.pset a cada pixel
+        # atalho para desenhar mais rapido
         pset = pyxel.pset
 
         for row, line in enumerate(sprite.grid):
@@ -155,19 +155,19 @@ class Entity:
         cos_a, sin_a = cos(angle), sin(angle)
         mirror = -1 if flip else 1
 
-        # meio lado de um quadrado que cobre o desenho em qualquer angulo
+        # tamanho da area que cabe o desenho girado
         reach = int(hypot(max(sprite.px, sprite.w - sprite.px),
                           max(sprite.py, sprite.h - sprite.py))) + 1
         base_x, base_y = floor(x), floor(y)
         pset = pyxel.pset
 
-        # anda pelos pixels da tela e pergunta de qual pixel do desenho cada um veio
+        # passa por cada pixel da tela e procura a cor no desenho
         for dy in range(-reach, reach + 1):
             ry = base_y + dy + 0.5 - y
             for dx in range(-reach, reach + 1):
                 rx = base_x + dx + 0.5 - x
 
-                # gira o pixel da tela pelo angulo contrario e cai no desenho reto
+                # desgira o pixel para achar o lugar dele no desenho
                 u = mirror * (rx * cos_a + ry * sin_a) + sprite.px
                 v = -rx * sin_a + ry * cos_a + sprite.py
 
@@ -188,14 +188,14 @@ class Entity:
 
         for y in range(top, floor(ymax)):
             row = y - top
-            # as primeiras linhas vem do topo, o resto repete o corpo
+            # o topo vem primeiro e depois o corpo se repete
             if row < top_tile.h:
                 line = top_tile.grid[row]
             else:
                 line = body_tile.grid[(row - top_tile.h) % body_tile.h]
 
             for x in range(left, floor(xmax)):
-                # o azulejo se repete na horizontal
+                # o azulejo se repete para o lado
                 color = line[(x - left) % len(line)]
                 if color != CLEAR:
                     pset(x, y, pal[color] if pal else color)

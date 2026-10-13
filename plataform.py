@@ -35,7 +35,7 @@ class MovingPlatform(Platform):
         self.way = 1
 
     def update(self, pace=1.0):
-        # t vai de 0 (inicio) a 1 (fim) e volta; pace acelera com a dificuldade
+        # anda pelo trilho e volta
         self.t += self.step * self.way * pace
         if self.t >= 1.0:
             self.t, self.way = 1.0, -1
@@ -47,7 +47,7 @@ class MovingPlatform(Platform):
         dy = self.ay + self.ry * self.t - cy
 
         self.translate(dx, dy)
-        # guarda o quanto andou para levar junto quem esta em cima ou preso nela
+        # guarda o quanto andou
         self.dx, self.dy = dx, dy
 
     def draw(self):

@@ -161,7 +161,7 @@ class Archer(Enemy):
                                   vx, vy, ARROW_DAMAGE))
 
         self.shot = None
-        # quanto mais dificil, menor a espera entre tiros
+        # quanto mais dificil menos espera entre tiros
         self.cooldown = int(ARCHER_COOLDOWN / world.pace)
 
     def frame(self):
@@ -208,7 +208,7 @@ class Charger(Enemy):
         way = 1.0 if dx > 0 else -1.0
         blocked = self.vx and abs(self.vx) < CHARGER_SPEED * 0.5
 
-        # quanto mais dificil, mais rapido corre
+        # quanto mais dificil mais rapido corre
         self.vx = way * CHARGER_SPEED * world.pace
         if self.ground and (blocked or dy < -12):
             self.vy = -3.2

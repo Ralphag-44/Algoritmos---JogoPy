@@ -5,7 +5,7 @@ COLOR_EDGE = 7
 
 
 def label(x, y, text, color, edge=COLOR_EDGE):
-    # contorno de 1 pixel em volta para ler em cima de qualquer fundo
+    # contorno em volta do texto
     for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
         pyxel.text(x + dx, y + dy, text, edge)
     pyxel.text(x, y, text, color)
