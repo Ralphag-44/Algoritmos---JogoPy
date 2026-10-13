@@ -1,4 +1,4 @@
-from math import atan2, cos, sin, pi
+from math import atan2, cos, sin, hypot
 
 from entity import Entity
 from config import GRAVITY, wrap
@@ -66,7 +66,7 @@ class Arrow(Entity):
         return self.age < STUCK_LIFE
 
     def __aim(self):
-        speed = (self.vx ** 2 + self.vy ** 2) ** 0.5
+        speed = hypot(self.vx, self.vy)
         attack = wrap(self.angle - atan2(self.vy, self.vx))
 
         self.spin += -ALIGN * speed * sin(attack) - SPIN_DRAG * self.spin
@@ -77,7 +77,7 @@ class Arrow(Entity):
             self.angle = wrap(self.angle + self.spin)
 
     def __advance(self, platforms):
-        speed = (self.vx ** 2 + self.vy ** 2) ** 0.5
+        speed = hypot(self.vx, self.vy)
         if speed == 0:
             return False
 

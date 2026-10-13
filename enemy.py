@@ -1,4 +1,4 @@
-from math import sin
+from math import sin, hypot
 
 import pyxel
 
@@ -58,7 +58,7 @@ class Enemy(Entity):
         if self.flash:
             self.flash -= 1
 
-        self.think(player, platforms, world)
+        self.think(player, world)
 
         if self.walker:
             self.vy = min(self.vy + GRAVITY, MAX_FALL)
@@ -70,7 +70,7 @@ class Enemy(Entity):
 
         return self.hp > 0
 
-    def think(self, player, platforms, world):
+    def think(self, player, world):
         pass
 
     def hurt(self, damage):
@@ -123,11 +123,11 @@ class Archer(Enemy):
         self.aiming = 0
         self.shot = None
 
-    def think(self, player, platforms, world):
+    def think(self, player, world):
         self.vx = 0.0
 
         dx, dy = self.dist_to(player)
-        far = (dx * dx + dy * dy) ** 0.5 > ARCHER_RANGE
+        far = hypot(dx, dy) > ARCHER_RANGE
         self.look_at(dx)
 
         if self.aiming:
@@ -156,12 +156,13 @@ class Archer(Enemy):
         cx, cy = self.points[-1]
         vx, vy = self.shot
 
-        speed = (vx * vx + vy * vy) ** 0.5 or 1.0
+        speed = hypot(vx, vy) or 1.0
         world.arrows.append(Arrow(cx + vx / speed * 7, cy + vy / speed * 7,
                                   vx, vy, ARROW_DAMAGE))
 
         self.shot = None
-        self.cooldown = ARCHER_COOLDOWN
+        # quanto mais dificil, menor a espera entre tiros
+        self.cooldown = int(ARCHER_COOLDOWN / world.pace)
 
     def frame(self):
         return ARCHER_DRAW if self.aiming else ARCHER_IDLE
@@ -172,7 +173,7 @@ class Archer(Enemy):
         if self.aiming and self.shot is not None:
             cx, cy = self.points[-1]
             vx, vy = self.shot
-            speed = (vx * vx + vy * vy) ** 0.5 or 1.0
+            speed = hypot(vx, vy) or 1.0
             pyxel.line(cx, cy, cx + vx / speed * 14, cy + vy / speed * 14, 8)
 
 
@@ -183,16 +184,16 @@ class Charger(Enemy):
         super().__init__(cx, cy, 4, 4.5, CHARGER_WALK[0], CHARGER_HP)
         self.fuse = 0
 
-    def think(self, player, platforms, world):
+    def think(self, player, world):
         dx, dy = self.dist_to(player)
-        dist = (dx * dx + dy * dy) ** 0.5
+        dist = hypot(dx, dy)
         self.look_at(dx)
 
         if self.fuse:
             self.fuse -= 1
             self.vx = 0.0
             if self.fuse == 0:
-                self.__blow(world, player)
+                self.__blow(world)
             return
 
         if dist > CHARGER_SIGHT:
@@ -207,13 +208,14 @@ class Charger(Enemy):
         way = 1.0 if dx > 0 else -1.0
         blocked = self.vx and abs(self.vx) < CHARGER_SPEED * 0.5
 
-        self.vx = way * CHARGER_SPEED
+        # quanto mais dificil, mais rapido corre
+        self.vx = way * CHARGER_SPEED * world.pace
         if self.ground and (blocked or dy < -12):
             self.vy = -3.2
 
-    def __blow(self, world, player):
+    def __blow(self, world):
         cx, cy = self.points[-1]
-        world.blasts.append(Blast(cx, cy, CHARGER_RADIUS, 1, CHARGER_DAMAGE))
+        world.blasts.append(Blast(cx, cy, CHARGER_RADIUS, CHARGER_DAMAGE))
         self.hp = 0
 
     def frame(self):
@@ -245,9 +247,9 @@ class Caster(Enemy):
         self.cooldown = CASTER_COOLDOWN // 2
         self.casting = 0
 
-    def think(self, player, platforms, world):
+    def think(self, player, world):
         dx, dy = self.dist_to(player)
-        dist = (dx * dx + dy * dy) ** 0.5 or 1.0
+        dist = hypot(dx, dy) or 1.0
         self.look_at(dx)
 
         if dist > CASTER_SIGHT:
@@ -263,8 +265,9 @@ class Caster(Enemy):
             return
 
         way = 1.0 if dist > CASTER_KEEP else -1.0
-        self.vx = dx / dist * CASTER_SPEED * way
-        self.vy = dy / dist * CASTER_SPEED * way + sin(self.timer * 0.05) * 0.3
+        speed = CASTER_SPEED * world.pace * way
+        self.vx = dx / dist * speed
+        self.vy = dy / dist * speed + sin(self.timer * 0.05) * 0.3
 
         if self.cooldown:
             self.cooldown -= 1
@@ -276,7 +279,7 @@ class Caster(Enemy):
         cx, cy = self.points[-1]
         px, py = player.points[-1]
         world.spells.append(Magic(cx, cy, px, py))
-        self.cooldown = CASTER_COOLDOWN
+        self.cooldown = int(CASTER_COOLDOWN / world.pace)
 
     def frame(self):
         if self.casting:

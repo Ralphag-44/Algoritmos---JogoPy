@@ -1,3 +1,5 @@
+from math import hypot
+
 from entity import Entity
 from config import GRAVITY
 from sprites import STONE_SHOT
@@ -35,14 +37,14 @@ class Projectile(Entity):
             self.__move_and_collide(platforms)
             self.spin += self.vx * ROLL
 
-            speed = (self.vx ** 2 + self.vy ** 2) ** 0.5
+            speed = hypot(self.vx, self.vy)
             if speed <= MIN_SPEED:
                 self.active = False
 
         return self.age < LIFETIME
 
     def __move_and_collide(self, platforms):
-        dist = (self.vx ** 2 + self.vy ** 2) ** 0.5
+        dist = hypot(self.vx, self.vy)
         if dist == 0:
             return
 
@@ -84,7 +86,7 @@ class Projectile(Entity):
                 px, py = x1 + ex * t, y1 + ey * t
 
                 dx, dy = vax - px, vay - py
-                d = (dx ** 2 + dy ** 2) ** 0.5
+                d = hypot(dx, dy)
 
                 if dist is None or d < dist:
                     dist = d

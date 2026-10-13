@@ -79,7 +79,7 @@ class Magic(Entity):
 
     def __blow(self, world):
         cx, cy = self.points[-1]
-        world.blasts.append(Blast(cx, cy, RADIUS, 1, DAMAGE))
+        world.blasts.append(Blast(cx, cy, RADIUS, DAMAGE))
 
     def draw(self):
         cx, cy = self.points[-1]

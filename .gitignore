@@ -5,3 +5,4 @@
 !*.pyxres
 !.gitignore
 utils/
+!demo.json

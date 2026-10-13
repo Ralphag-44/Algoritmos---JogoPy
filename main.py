@@ -1,193 +1,154 @@
-import random
-
 import pyxel
 
-from config import DEBUG
-from player import Player, MAX_HP, KEY_LEFT, KEY_RIGHT, KEY_JUMP, KEY_HOOK_HOLD, KEY_ROPE_IN, KEY_ROPE_OUT
-from plataform import Platform, MovingPlatform
-from projectile import Projectile
-from enemy import Archer, Charger, Caster
-from lava import Lava
+from player import (KEY_LEFT, KEY_RIGHT, KEY_JUMP, KEY_HOOK_HOLD, KEY_ROPE_IN, KEY_ROPE_OUT,
+                    KEY_FIRE, KEY_HOOK_FIRE)
+from session import Session, WIDTH, HEIGHT
+from replay import Replay, DEMO_FILE, BEST_FILE
+from ui import label_center
 
-WIDTH = 256
-HEIGHT = 192
 FPS = 60
 
-LEVEL_WIDTH = 256
-LEVEL_HEIGHT = 192 * 12
+MENU = 0
+PLAYING = 1
 
-TIER = 42
-NEAR_X = 200.0
-NEAR_Y = 160.0
-AWAKE = 260.0
+CURTAIN_TIME = 60
+DEMO_TAIL = 90
 
-SPAWN_X = 30
-SEED = 7
+TITLE = "OVERFLOW"
+TITLE_SCALE = 4
+TITLE_Y = 46
 
+BUTTON_TEXT = "APERTE PARA JOGAR"
+BUTTON_W = 84
+BUTTON_H = 15
+BUTTON_Y = 92
 
-class World:
-    __slots__ = ('arrows', 'spells', 'blasts')
+CONTROLS = "A/D andar  W pular  S/W corda  mouse: esq atira, dir gancho"
 
-    def __init__(self):
-        self.arrows = []
-        self.spells = []
-        self.blasts = []
+# cores da gameplay de fundo, todas puxadas para tons claros
+FADED = (5, 5, 13, 6, 13, 13, 6, 7, 14, 15, 15, 6, 6, 13, 14, 15)
+
+COLOR_SHADE = 1
+COLOR_CURTAIN = 1
+COLOR_CURTAIN_EDGE = 8
+COLOR_TITLE = 8
+COLOR_BUTTON = 8
+COLOR_BUTTON_HOVER = 9
+COLOR_LIGHT = 7
+COLOR_TEXT = 5
 
 
 class Game:
     def __init__(self):
-        pyxel.init(WIDTH, HEIGHT, title="Jogo-Algoritmo", fps=FPS)
+        pyxel.init(WIDTH, HEIGHT, title="Overflow", fps=FPS)
         pyxel.mouse(True)
+        Game.__bake_title()
 
-        self.cam_x = 0
-        self.cam_y = 0
+        self.mode = MENU
+        self.curtain = 0
+        self.best = Replay.load(BEST_FILE)
+        self.demo = self.best if len(self.best) else Replay.load(DEMO_FILE)
+        self.record = None
+        self.last = None
 
-        self.player = Player(SPAWN_X, LEVEL_HEIGHT - 30, half_size=3)
-        self.platforms, self.enemies = self.__build_level()
-        self.lava = Lava(LEVEL_HEIGHT, LEVEL_WIDTH)
-        self.projectiles = []
-        self.world = World()
-
+        self.__start_demo()
         pyxel.run(self.update, self.draw)
 
     @staticmethod
-    def __build_level():
-        rng = random.Random(SEED)
+    def __bake_title():
+        # escreve o titulo pequeno no banco de imagem 0 para depois desenhar ampliado
+        bank = pyxel.images[0]
+        bank.cls(0)
+        bank.text(0, 0, TITLE, COLOR_TITLE)
+        bank.text(0, 8, TITLE, COLOR_SHADE)
 
-        platforms = [
-            Platform(LEVEL_WIDTH / 2, LEVEL_HEIGHT - 5, [
-                (0, LEVEL_HEIGHT - 10), (LEVEL_WIDTH, LEVEL_HEIGHT - 10),
-                (LEVEL_WIDTH, LEVEL_HEIGHT), (0, LEVEL_HEIGHT),
-            ]),
-        ]
-        enemies = []
-
-        kinds = (Archer, Charger, Caster)
-        y = LEVEL_HEIGHT - 60
-        tier = 0
-
-        while y > 80:
-            w = rng.choice((44, 52, 60))
-            h = 8
-            x = 12 + (LEVEL_WIDTH - 24 - w) * (0.15 if tier % 2 else 0.85)
-            x += rng.randint(-10, 10)
-            x = max(6, min(LEVEL_WIDTH - w - 6, x))
-
-            corners = [(x, y - h), (x + w, y - h), (x + w, y), (x, y)]
-            cx, cy = x + w / 2, y - h / 2
-
-            if tier % 5 == 4:
-                reach = rng.choice((-1, 1)) * rng.randint(50, 80)
-                to_x = max(w / 2 + 6, min(LEVEL_WIDTH - w / 2 - 6, cx + reach))
-                platforms.append(MovingPlatform(cx, cy, corners, to_x, cy,
-                                                speed=rng.uniform(0.5, 0.85)))
-            else:
-                platforms.append(Platform(cx, cy, corners))
-
-                if tier % 3 == 2:
-                    kind = kinds[(tier // 3) % 3]
-                    enemies.append(kind(cx, y - h - 8))
-
-            if tier % 4 == 3:
-                wx = 6 if tier % 8 == 3 else LEVEL_WIDTH - 14
-                wy = y - TIER
-                platforms.append(Platform(wx + 4, wy - 35, [
-                    (wx, wy - 70), (wx + 8, wy - 70), (wx + 8, wy), (wx, wy),
-                ]))
-
-            y -= TIER
-            tier += 1
-
-        return platforms, enemies
+    def __start_demo(self):
+        self.session = Session()
+        self.tick = 0
 
     def update(self):
-        keys = self.__read_keys()
+        if self.mode == MENU:
+            self.__step_demo()
+            if not self.curtain and self.__pressed_play():
+                self.curtain = 1
+        elif not self.curtain:
+            self.__step_game()
 
-        self.lava.update()
-        self.__update_platforms()
+        if self.curtain:
+            self.__update_curtain()
 
-        self.__handle_hook(keys)
-        self.player.update(keys, self.__near(self.player))
+    def __step_demo(self):
+        # a run gravada acabou (ou o jogador morreu): recomeca do zero
+        ended = len(self.demo) and self.tick > len(self.demo) + DEMO_TAIL
+        if ended or self.session.over():
+            self.__start_demo()
 
-        if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
-            self.__fire()
+        if self.tick < len(self.demo):
+            keys, tx, ty = self.demo.frame(self.tick)
+        else:
+            keys, tx, ty = 0, 0, 0
 
-        self.__update_enemies()
+        self.session.step(keys, tx, ty)
+        self.tick += 1
 
-        self.projectiles = [p for p in self.projectiles
-                            if p.update(self.__near(p)) and not self.__hit_enemies(p)]
+    def __step_game(self):
+        keys, tx, ty = self.__read_input()
+        self.record.record(keys, tx, ty)
+        self.session.step(keys, tx, ty)
 
-        self.world.arrows = [a for a in self.world.arrows
-                             if a.update(self.__near(a), self.player)]
-        self.world.spells = [m for m in self.world.spells
-                             if m.update(self.__near(m), self.player, self.world)]
-        self.world.blasts = [b for b in self.world.blasts if b.update(self.player)]
+        if self.session.over():
+            self.__finish()
 
-        self.__update_camera()
+    def __finish(self):
+        self.last = self.session.best
+        self.record.height = self.session.best
 
-        if not self.player.alive() or self.lava.kills(self.player):
-            self.__reset()
+        # a melhor run do jogador vira o fundo do menu
+        if self.record.height > self.best.height:
+            self.record.save(BEST_FILE)
+            self.best = self.demo = self.record
 
-    def __update_platforms(self):
-        for platform in self.platforms:
-            dx, dy = platform.update()
+        self.curtain = 1
 
-            if (dx or dy) and self.player.ground_platform is platform:
-                self.player.translate(dx, dy)
+    def __update_curtain(self):
+        self.curtain += 1
 
-    def __update_enemies(self):
-        cy = self.player.points[-1][1]
-        alive = []
+        # no meio da animacao a tela esta toda coberta: troca a cena por baixo
+        if self.curtain == CURTAIN_TIME // 2:
+            self.__swap()
 
-        for enemy in self.enemies:
-            if abs(enemy.points[-1][1] - cy) > AWAKE:
-                alive.append(enemy)
-                continue
+        if self.curtain >= CURTAIN_TIME:
+            self.curtain = 0
 
-            if enemy.update(self.player, self.__near(enemy), self.world):
-                alive.append(enemy)
+    def __swap(self):
+        if self.mode == MENU:
+            self.mode = PLAYING
+            self.session = Session()
+            self.record = Replay()
+        else:
+            self.mode = MENU
+            self.__start_demo()
 
-        self.enemies = alive
+    def __curtain_bottom(self):
+        # vai de 0 a 2*HEIGHT, devagar nas pontas e rapido no meio
+        t = self.curtain / CURTAIN_TIME
+        return 2 * HEIGHT * t * t * (3 - 2 * t)
 
-    def __hit_enemies(self, projectile):
-        if not projectile.active:
+    def __button(self):
+        return (WIDTH - BUTTON_W) // 2, BUTTON_Y
+
+    def __pressed_play(self):
+        if pyxel.btnp(pyxel.KEY_RETURN) or pyxel.btnp(pyxel.KEY_SPACE):
+            return True
+        if not pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
             return False
+        return self.__hover()
 
-        cy = self.player.points[-1][1]
-        for enemy in self.enemies:
-            if abs(enemy.points[-1][1] - cy) > AWAKE:
-                continue
-            if projectile.collide(enemy):
-                enemy.hurt(projectile.damage)
-                return True
+    def __hover(self):
+        bx, by = self.__button()
+        return bx <= pyxel.mouse_x < bx + BUTTON_W and by <= pyxel.mouse_y < by + BUTTON_H
 
-        return False
-
-    def __near(self, entity):
-        cx, cy = entity.points[-1]
-        return [p for p in self.platforms
-                if abs(p.points[-1][0] - cx) < NEAR_X + p.size
-                and abs(p.points[-1][1] - cy) < NEAR_Y + p.size]
-
-    def __reset(self):
-        self.player.respawn(SPAWN_X, LEVEL_HEIGHT - 30)
-        self.platforms, self.enemies = self.__build_level()
-        self.lava.reset()
-        self.projectiles.clear()
-        self.world.arrows.clear()
-        self.world.spells.clear()
-        self.world.blasts.clear()
-
-    def __update_camera(self):
-        cx, cy = self.player.points[-1]
-        self.cam_x = min(max(cx - WIDTH / 2, 0), max(LEVEL_WIDTH - WIDTH, 0))
-        self.cam_y = min(max(cy - HEIGHT / 2, 0), max(LEVEL_HEIGHT - HEIGHT, 0))
-
-    def __mouse_world(self):
-        return pyxel.mouse_x + self.cam_x, pyxel.mouse_y + self.cam_y
-
-    @staticmethod
-    def __read_keys():
+    def __read_input(self):
         keys = 0
 
         if pyxel.btn(pyxel.KEY_A):
@@ -202,65 +163,71 @@ class Game:
             keys |= KEY_ROPE_OUT
         if pyxel.btn(pyxel.MOUSE_BUTTON_RIGHT):
             keys |= KEY_HOOK_HOLD
+        if pyxel.btnp(pyxel.MOUSE_BUTTON_RIGHT):
+            keys |= KEY_HOOK_FIRE
+        if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
+            keys |= KEY_FIRE
 
-        return keys
+        # o alvo do mouse so importa no frame do clique, e vai em inteiro para a gravacao
+        tx = ty = 0
+        if keys & (KEY_FIRE | KEY_HOOK_FIRE):
+            tx = int(pyxel.mouse_x + self.session.cam_x)
+            ty = int(pyxel.mouse_y + self.session.cam_y)
 
-    def __handle_hook(self, keys):
-        if keys & KEY_HOOK_HOLD:
-            if pyxel.btnp(pyxel.MOUSE_BUTTON_RIGHT):
-                tx, ty = self.__mouse_world()
-                self.player.fire_hook(tx, ty)
-        else:
-            self.player.release_hook()
-
-    def __fire(self):
-        tx, ty = self.__mouse_world()
-        cx, cy, vx, vy = self.player.fire(tx, ty)
-        self.projectiles.append(Projectile(cx, cy, vx, vy))
+        return keys, tx, ty
 
     def draw(self):
-        pyxel.camera(self.cam_x, self.cam_y)
-        pyxel.cls(7)
+        if self.mode == PLAYING:
+            self.session.draw()
+            self.session.draw_hud()
+        else:
+            for color, faded in enumerate(FADED):
+                pyxel.pal(color, faded)
+            self.session.draw()
+            pyxel.pal()
+            self.__draw_menu()
 
-        top = self.cam_y - 40
-        bottom = self.cam_y + HEIGHT + 40
+        if self.curtain:
+            self.__draw_curtain()
 
-        for platform in self.platforms:
-            if top < platform.points[-1][1] < bottom:
-                platform.draw()
+    def __draw_menu(self):
+        # o painel desce junto com a cortina so na ida para o jogo
+        drop = 0
+        if self.curtain and self.curtain < CURTAIN_TIME // 2:
+            drop = self.__curtain_bottom()
 
-        self.lava.draw()
-        if DEBUG:
-            self.lava.draw_debug()
+        self.__draw_title(TITLE_Y + drop)
 
-        for arrow in self.world.arrows:
-            arrow.draw()
+        bx, by = self.__button()
+        by += drop
+        color = COLOR_BUTTON_HOVER if self.__hover() and not self.curtain else COLOR_BUTTON
+        pyxel.rect(bx, by, BUTTON_W, BUTTON_H, color)
+        pyxel.rectb(bx, by, BUTTON_W, BUTTON_H, COLOR_LIGHT)
+        label_center(WIDTH // 2, by + 5, BUTTON_TEXT, COLOR_LIGHT, color)
 
-        for projectile in self.projectiles:
-            projectile.draw()
+        if self.best.height:
+            label_center(WIDTH // 2, by + 26, f"recorde: {self.best.height}m", COLOR_SHADE)
+        if self.last is not None:
+            label_center(WIDTH // 2, by + 36, f"ultima: {self.last}m", COLOR_TEXT)
 
-        for enemy in self.enemies:
-            if top < enemy.points[-1][1] < bottom:
-                enemy.draw()
+        label_center(WIDTH // 2, HEIGHT - 10 + drop, CONTROLS, COLOR_TEXT)
 
-        for spell in self.world.spells:
-            spell.draw()
+    @staticmethod
+    def __draw_title(y):
+        w = len(TITLE) * 4
+        x = (WIDTH - w) // 2
+        # blt amplia em volta do centro do retangulo, entao x e y sao o retangulo pequeno
+        pyxel.blt(x + 2, y + 2, 0, 0, 8, w, 6, 0, scale=TITLE_SCALE)
+        pyxel.blt(x, y, 0, 0, 0, w, 6, 0, scale=TITLE_SCALE)
 
-        for blast in self.world.blasts:
-            blast.draw()
+    def __draw_curtain(self):
+        bottom = self.__curtain_bottom()
+        top = bottom - HEIGHT
 
-        self.player.draw()
-        self.__draw_hud()
-
-    def __draw_hud(self):
-        pyxel.camera()
-
-        pyxel.rect(4, 4, 52, 6, 0)
-        pyxel.rect(5, 5, 50 * self.player.hp / MAX_HP, 4, 8)
-        pyxel.text(60, 5, f"{self.player.hp}/{MAX_HP}", 0)
-
-        height = int(LEVEL_HEIGHT - self.player.points[-1][1])
-        pyxel.text(WIDTH - 40, 5, f"{height}m", 0)
+        pyxel.rect(0, top, WIDTH, HEIGHT, COLOR_CURTAIN)
+        pyxel.rect(0, bottom - 2, WIDTH, 2, COLOR_CURTAIN_EDGE)
+        pyxel.rect(0, top, WIDTH, 2, COLOR_CURTAIN_EDGE)
 
 
-Game()
+if __name__ == "__main__":
+    Game()

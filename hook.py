@@ -1,4 +1,4 @@
-from math import atan2
+from math import atan2, hypot
 
 import pyxel
 
@@ -23,7 +23,7 @@ class Hook:
 
     def __init__(self, px, py, tx, ty):
         dx, dy = tx - px, ty - py
-        dist = (dx ** 2 + dy ** 2) ** 0.5 or 1
+        dist = hypot(dx, dy) or 1
         self.dx, self.dy = dx / dist, dy / dist
 
         self.x, self.y = px, py
@@ -66,7 +66,7 @@ class Hook:
 
     def __return(self, px, py):
         dx, dy = px - self.x, py - self.y
-        dist = (dx ** 2 + dy ** 2) ** 0.5
+        dist = hypot(dx, dy)
 
         if dist <= SPEED:
             self.state = 0

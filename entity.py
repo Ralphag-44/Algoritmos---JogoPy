@@ -1,26 +1,32 @@
-from math import sin, cos, pi, floor
+from math import sin, cos, pi, floor, hypot
 import numpy as np
 import pyxel
 from config import DEBUG
 from sprites import CLEAR
 
 
-class Entity:
-    __slots__ = ('points', 'size', 'type', 'img', 'color')
+def side(start, end, p):
+    # positivo de um lado da reta start->end, negativo do outro, zero em cima
+    return ((end[..., 0] - start[..., 0]) * (p[..., 1] - start[..., 1])
+            - (end[..., 1] - start[..., 1]) * (p[..., 0] - start[..., 0]))
 
-    def __init__(self, cvx, cx, cy, num_p, size, list_points, type, img=None, color=None, angle_offset=0):
+
+class Entity:
+    __slots__ = ('points', 'size', 'type', 'img')
+
+    def __init__(self, cvx, cx, cy, num_p, size, list_points, type, img=None, angle_offset=0):
         if cvx:
             list_points = Entity.__generate_points(cx, cy, num_p, size, angle_offset)
         elif not size:
             size = Entity.__calc_size(cx, cy, list_points)
 
+        # o centro fica sempre no ultimo ponto
         list_points.append((cx, cy))
         self.points = np.array([[x, y] for x, y in list_points], dtype=np.float32)
         self.size = size
 
         self.type = type
         self.img = img
-        self.color = color
 
 
     @staticmethod
@@ -36,14 +42,14 @@ class Entity:
 
     @staticmethod
     def __calc_size(cx, cy, list_points):
-        return max(((x - cx) ** 2 + (y - cy) ** 2) ** 0.5 for x, y in list_points)
+        return max(hypot(x - cx, y - cy) for x, y in list_points)
 
-    
+
     def translate(self, vx, vy):
         self.points += np.array([vx, vy])
 
-    
-    def rotate(self, angle, sin=sin, cos=cos):
+
+    def rotate(self, angle):
         sin_a = sin(angle)
         cos_a = cos(angle)
 
@@ -58,34 +64,31 @@ class Entity:
 
 
     def collide(self, other):
-        center_a = self.points[-1]
-        center_b = other.points[-1]
-
-        dist = ((center_a[0] - center_b[0]) ** 2 + (center_a[1] - center_b[1]) ** 2) ** 0.5
-        if dist > self.size + other.size:
+        # corte rapido: os circulos que envolvem os dois nem se tocam
+        ax, ay = self.points[-1]
+        bx, by = other.points[-1]
+        if hypot(ax - bx, ay - by) > self.size + other.size:
             return False
 
-        poly_a = self.points[:-1]
-        poly_b = other.points[:-1]
+        # cada aresta vai de um vertice ate o proximo
+        a_start = self.points[:-1]
+        a_end = np.roll(a_start, -1, axis=0)
+        b_start = other.points[:-1]
+        b_end = np.roll(b_start, -1, axis=0)
 
-        p1a = poly_a
-        p2a = np.roll(poly_a, -1, axis=0)
+        # arestas de A nas linhas, arestas de B nas colunas: testa todos os pares de uma vez
+        a_start = a_start[:, np.newaxis]
+        a_end = a_end[:, np.newaxis]
+        b_start = b_start[np.newaxis, :]
+        b_end = b_end[np.newaxis, :]
 
-        p1b = poly_b
-        p2b = np.roll(poly_b, -1, axis=0)
+        # as duas pontas da aresta de B ficam em lados opostos da reta de A
+        b_split = (side(a_start, a_end, b_start) > 0) != (side(a_start, a_end, b_end) > 0)
+        # as duas pontas da aresta de A ficam em lados opostos da reta de B
+        a_split = (side(b_start, b_end, a_start) > 0) != (side(b_start, b_end, a_end) > 0)
 
-        p1 = p1a[:, np.newaxis, :]   
-        p2 = p2a[:, np.newaxis, :]
-        p3 = p1b[np.newaxis, :, :]   
-        p4 = p2b[np.newaxis, :, :]
-
-        d1 = (p2[...,0]-p1[...,0])*(p3[...,1]-p1[...,1]) - (p2[...,1]-p1[...,1])*(p3[...,0]-p1[...,0])
-        d2 = (p2[...,0]-p1[...,0])*(p4[...,1]-p1[...,1]) - (p2[...,1]-p1[...,1])*(p4[...,0]-p1[...,0])
-        d3 = (p4[...,0]-p3[...,0])*(p1[...,1]-p3[...,1]) - (p4[...,1]-p3[...,1])*(p1[...,0]-p3[...,0])
-        d4 = (p4[...,0]-p3[...,0])*(p2[...,1]-p3[...,1]) - (p4[...,1]-p3[...,1])*(p2[...,0]-p3[...,0])
-
-        intersecta = ((d1 > 0) != (d2 > 0)) & ((d3 > 0) != (d4 > 0))
-        return intersecta.any()
+        # duas arestas se cruzam quando as duas coisas valem juntas
+        return bool((a_split & b_split).any())
 
 
     def aabb(self):
@@ -113,28 +116,12 @@ class Entity:
         return 0.0
 
 
-    def center(self):
-        return self.points[-1]
-
-
     def draw(self, flip=False, angle=0.0, pal=None):
-        cx, cy = self.points[-1]
-
-        if self.type == 'sprite':
-            Entity.paint(self.img, cx, cy, flip, angle, pal)
-        elif self.type == 'tiles':
+        if self.type == 'tiles':
             self.__paint_tiles(pal)
-        elif self.type == 'img':
-            w = h = self.size * 2
-            pyxel.blt(cx - self.size, cy - self.size, self.img, 0, 0, w, h, 0)
         else:
-            outline = self.points[:-1]
-            n = len(outline)
-
-            for i in range(n):
-                x1, y1 = outline[i]
-                x2, y2 = outline[(i + 1) % n]
-                pyxel.tri(cx, cy, x1, y1, x2, y2, self.color)
+            cx, cy = self.points[-1]
+            Entity.paint(self.img, cx, cy, flip, angle, pal)
 
         if DEBUG:
             self.__draw_hitbox()
@@ -146,59 +133,72 @@ class Entity:
             Entity.__paint_rotated(sprite, x, y, flip, angle, pal)
             return
 
-        w = sprite.w
-        ox = floor(x - (w - sprite.px if flip else sprite.px))
-        oy = floor(y - sprite.py)
+        # canto de cima a esquerda: o pivo do desenho cai em (x, y)
+        pivot_x = sprite.w - sprite.px if flip else sprite.px
+        left = floor(x - pivot_x)
+        top = floor(y - sprite.py)
+        # atalho: evita buscar pyxel.pset a cada pixel
         pset = pyxel.pset
 
-        for j, row in enumerate(sprite.grid):
-            for i, c in enumerate(row):
-                if c == CLEAR:
+        for row, line in enumerate(sprite.grid):
+            for col, color in enumerate(line):
+                if color == CLEAR:
                     continue
-                pset(ox + (w - 1 - i if flip else i), oy + j, pal[c] if pal else c)
+                # espelhado le a linha de tras pra frente
+                if flip:
+                    col = sprite.w - 1 - col
+                pset(left + col, top + row, pal[color] if pal else color)
 
 
     @staticmethod
     def __paint_rotated(sprite, x, y, flip, angle, pal):
-        grid, w, h, px, py = sprite.grid, sprite.w, sprite.h, sprite.px, sprite.py
         cos_a, sin_a = cos(angle), sin(angle)
-        side = -1 if flip else 1
+        mirror = -1 if flip else 1
 
-        reach = int((max(px, w - px) ** 2 + max(py, h - py) ** 2) ** 0.5) + 1
-        bx, by = floor(x), floor(y)
+        # meio lado de um quadrado que cobre o desenho em qualquer angulo
+        reach = int(hypot(max(sprite.px, sprite.w - sprite.px),
+                          max(sprite.py, sprite.h - sprite.py))) + 1
+        base_x, base_y = floor(x), floor(y)
         pset = pyxel.pset
 
+        # anda pelos pixels da tela e pergunta de qual pixel do desenho cada um veio
         for dy in range(-reach, reach + 1):
-            ry = by + dy + 0.5 - y
+            ry = base_y + dy + 0.5 - y
             for dx in range(-reach, reach + 1):
-                rx = bx + dx + 0.5 - x
+                rx = base_x + dx + 0.5 - x
 
-                u = side * (rx * cos_a + ry * sin_a) + px
-                v = -rx * sin_a + ry * cos_a + py
-                if not (0 <= u < w and 0 <= v < h):
+                # gira o pixel da tela pelo angulo contrario e cai no desenho reto
+                u = mirror * (rx * cos_a + ry * sin_a) + sprite.px
+                v = -rx * sin_a + ry * cos_a + sprite.py
+
+                # caiu fora do desenho
+                if not (0 <= u < sprite.w and 0 <= v < sprite.h):
                     continue
 
-                c = grid[int(v)][int(u)]
-                if c != CLEAR:
-                    pset(bx + dx, by + dy, pal[c] if pal else c)
+                color = sprite.grid[int(v)][int(u)]
+                if color != CLEAR:
+                    pset(base_x + dx, base_y + dy, pal[color] if pal else color)
 
 
     def __paint_tiles(self, pal):
-        top, body = self.img
+        top_tile, body_tile = self.img
         xmin, xmax, ymin, ymax = self.aabb()
-        x0, y0 = floor(xmin), floor(ymin)
-        x1, y1 = floor(xmax), floor(ymax)
+        left, top = floor(xmin), floor(ymin)
         pset = pyxel.pset
 
-        for y in range(y0, y1):
-            j = y - y0
-            row = top.grid[j] if j < top.h else body.grid[(j - top.h) % body.h]
-            w = len(row)
+        for y in range(top, floor(ymax)):
+            row = y - top
+            # as primeiras linhas vem do topo, o resto repete o corpo
+            if row < top_tile.h:
+                line = top_tile.grid[row]
+            else:
+                line = body_tile.grid[(row - top_tile.h) % body_tile.h]
 
-            for x in range(x0, x1):
-                c = row[(x - x0) % w]
-                if c != CLEAR:
-                    pset(x, y, pal[c] if pal else c)
+            for x in range(left, floor(xmax)):
+                # o azulejo se repete na horizontal
+                color = line[(x - left) % len(line)]
+                if color != CLEAR:
+                    pset(x, y, pal[color] if pal else color)
 
 
     def __draw_hitbox(self):

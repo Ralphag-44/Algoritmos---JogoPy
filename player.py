@@ -1,4 +1,4 @@
-from math import pi, sqrt
+from math import pi, sqrt, hypot
 
 import pyxel
 
@@ -35,6 +35,8 @@ KEY_JUMP      = 1 << 2
 KEY_HOOK_HOLD = 1 << 3
 KEY_ROPE_IN   = 1 << 4
 KEY_ROPE_OUT  = 1 << 5
+KEY_FIRE      = 1 << 6
+KEY_HOOK_FIRE = 1 << 7
 
 
 class Player(Entity):
@@ -106,8 +108,7 @@ class Player(Entity):
         return True
 
     def __set_rope(self, cx, cy):
-        dx, dy = cx - self.hook.anchor_x, cy - self.hook.anchor_y
-        dist = (dx * dx + dy * dy) ** 0.5
+        dist = hypot(cx - self.hook.anchor_x, cy - self.hook.anchor_y)
         self.hook.length = min(max(dist, MIN_ROPE), MAX_RANGE)
 
     def __walk(self, keys):
@@ -165,35 +166,39 @@ class Player(Entity):
             self.hook.release()
 
     def __swing(self, keys):
-        cx, cy = self.points[-1]
+        hook = self.hook
 
+        # W encurta e S solta a corda
         if keys & KEY_ROPE_IN:
-            self.hook.length = max(self.hook.length - ROPE_SPEED, MIN_ROPE)
+            hook.length = max(hook.length - ROPE_SPEED, MIN_ROPE)
         if keys & KEY_ROPE_OUT:
-            self.hook.length = min(self.hook.length + ROPE_SPEED, MAX_RANGE)
+            hook.length = min(hook.length + ROPE_SPEED, MAX_RANGE)
 
-        hx, hy = self.hook.anchor_x, self.hook.anchor_y
-
+        # forcas do frame: gravidade e o empurrao de A/D
         self.vy += GRAVITY
         if keys & KEY_LEFT:
             self.vx -= HOOK_PULL
         if keys & KEY_RIGHT:
             self.vx += HOOK_PULL
 
-        nx = cx + self.vx
-        ny = cy + self.vy
+        # 1) anda livre, como se nao houvesse corda
+        cx, cy = self.points[-1]
+        next_x = cx + self.vx
+        next_y = cy + self.vy
 
-        dx = nx - hx
-        dy = ny - hy
-        dist = (dx ** 2 + dy ** 2) ** 0.5
+        # 2) passou do tamanho da corda: volta pela reta ate a ancora, parando na borda do circulo
+        rope_x = next_x - hook.anchor_x
+        rope_y = next_y - hook.anchor_y
+        dist = hypot(rope_x, rope_y)
 
-        if dist > self.hook.length and dist > 0:
-            scale = self.hook.length / dist
-            nx = hx + dx * scale
-            ny = hy + dy * scale
+        if dist > hook.length:
+            pull = hook.length / dist
+            next_x = hook.anchor_x + rope_x * pull
+            next_y = hook.anchor_y + rope_y * pull
 
-        self.vx = nx - cx
-        self.vy = ny - cy
+        # 3) a velocidade nova e o quanto andou de verdade
+        self.vx = next_x - cx
+        self.vy = next_y - cy
 
     def hurt(self, damage):
         if self.iframes or self.hp <= 0:
@@ -247,20 +252,8 @@ class Player(Entity):
         cx, cy = self.points[-1]
         dx = target_x - cx
         dy = target_y - cy
-        dist = (dx ** 2 + dy ** 2) ** 0.5 or 1
+        dist = hypot(dx, dy) or 1
         return cx, cy, dx / dist * speed, dy / dist * speed
-
-    def respawn(self, cx, cy):
-        px, py = self.points[-1]
-        self.translate(cx - px, cy - py)
-
-        self.vx = self.vy = 0.0
-        self.hp = MAX_HP
-        self.iframes = IFRAMES
-        self.state = DOUBLE_JUMP | FACING_RIGHT
-        self.hook = None
-        self.wall_timer = self.lock = 0
-        self.ground_platform = None
 
     def __frame(self):
         if self.state & HOOKED:
